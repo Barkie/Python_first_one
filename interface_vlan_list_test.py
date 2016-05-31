@@ -98,10 +98,8 @@ for index, width in enumerate(widths):
 for index, header in enumerate(headers):
     ws.write(0, index, header)
 
-# create counter
-i = 1
 
-def search():
+def search(i):
     # w/o this thing counter do not work inside function
     # BADPRACTICE/fix later!
     global i
@@ -152,15 +150,18 @@ def search():
     print('info saved')
     # counter+1 to next excel line
     i += 1
-
     
+    return i
+
+
+row = 1
 for file in listFF:
    f = open('C:/python/configs//{0}'.format(file), 'r+')
    some_str = f.read()
-   print(i, file)
+   print(row, file)
    #write filename in first column
-   ws.write(i, 0, file)
-   search()
+   ws.write(row, 0, file)
+   row = search(row)
    print('ready')
    
 wb.save('C:/python/outputdir/interface_vlan_list_test.xls')
