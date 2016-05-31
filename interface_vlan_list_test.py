@@ -100,6 +100,12 @@ for index, header in enumerate(headers):
 
 
 def search(i):
+<<<<<<< HEAD
+=======
+    # w/o this thing counter do not work inside function
+    # BADPRACTICE/fix later!
+    global i
+>>>>>>> ca3b417f4dc11b490ca8a4af63c885ea6a2d736a
     # find hostname
     hostname = find_device_hostname(some_str)
     if hostname:
@@ -159,9 +165,14 @@ for file in listFF:
    # read file content
    some_str = f.read()
    print(row, file)
+<<<<<<< HEAD
    # write filename in first column
    ws.write(row, 0, file)
    #row number = result of search function
+=======
+   #write filename in first column
+   ws.write(row, 0, file)
+>>>>>>> ca3b417f4dc11b490ca8a4af63c885ea6a2d736a
    row = search(row)
    print('ready')
    
