@@ -7,66 +7,94 @@ import xlrd
 import xlwt
 import time
 import sys
-import pexpect
-from pexpect import popen_spawn
+import winpexpect
 import paramiko
+import paramiko_expect
+import traceback
+from paramiko_expect import SSHClientInteraction
 # time check - start time
 start_time = time.time()
 
-rb = xlrd.open_workbook('c:/python/checkpoint/ip.xls')
-sheet = rb.sheet_by_name('IPs')
+iprb = xlrd.open_workbook('c:/python/checkpoint/ip.xls')
+sheet = iprb.sheet_by_name('IPs')
 num_rows = sheet.nrows
 num_cols = sheet.ncols
+
+cmrb = xlrd.open_workbook('c:/python/checkpoint/commands.xls')
+sheet1 = cmrb.sheet_by_name('commands')
+num_rows1 = sheet1.nrows
+num_cols1 = sheet1.ncols
+
+
 ip_addr_list = [sheet.row_values(rawnum)[0] for rawnum in range(sheet.nrows)]
+commands_list = [sheet1.row_values(rawnum)[0] for rawnum in range(sheet1.nrows)]
 num_ips = 0
+#host = '10.10.0.254'
 user = 'admin'
 passwd = '1q2w3e'
+expert_passwd = '1q2w3e'
 ssh = paramiko.SSHClient()
 ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
-def ssh_connection():
-        """ssh connection process"""
-        try:
-            ssh.connect(host, username=user, password=passwd, timeout = '3')
-        except TimeoutError:
-        	print('surprise motherfucker')          
+prompt = '\n.*> '
+expert_prompt = '\n.*# '
+not_found = '\n.*Invalid command:.*'
+no_expert_pass = '\n.*"set expert-password".*'
+wrong_expert_pass = '\n.*Wrong password.*'
+enter_expert_pass = '\n.*expert password:'
+#def ssh_connection():
+#        """ssh connection process"""
+#        try:
+#            # Connect to the host
+#            ssh.connect(hostname=host, username=user, password=passwd)
+#            interact = SSHClientInteraction(ssh, timeout=10, display=True)
+#            print('ok')
+#        except TimeoutError:
+#        	print('surprise motherfucker')          
+#
+#
+#        return interact
                 
         
-def if_all():
+def commands():
         """ssh write commands"""
-        stdin, stdout, stderr = ssh.exec_command("show interfaces all")
-        interfaces = stdout.readlines()
-        
-        return interfaces
+        try:
+            ssh.connect(hostname=host, username=user, password=passwd)
+        except TimeoutError:
+            print('surprise motherfucker, host is down')
+        interact = SSHClientInteraction(ssh, timeout=10, display=True)\
+        print('connected')
+        interact.send(item)
+        found_index = interact.expect([not_found, prompt])
+        if found_index == 0:
+            print('command not found, trying expert mode')
+            interact.send('expert')
+            entering_expert_index = interact.expect([no_expert_pass, enter_expert_pass])
+            if entering_expert_index == 0:
+                print('no expert password, need to set it')
+                no_expert_output = interact.current_output_clean
+                # something here to write to file
+            elif entering_expert_index == 1:
+                print('cp asked for expert password, entering it')
+                interact.send(expert_passwd)
+                expert_mode_index([wrong_expert_pass, expert_prompt])
+                if expert_mode_index == 0:
+                    print('wrong expert pass')
+                    #something here to write to file
+                elif expert_mode_index == 1:
+                    print('password ok, continuing')
+            interact.send(i)
+            interact.expect(expert_prompt)
+            interact.send('exit')
+            interact.expect(prompt)
 
-
-def if_LAN1():
-        stdin, stdout, stderr = ssh.exec_command("show interface Lan1")
-        LAN1 = stdout.readlines()
-
-        return LAN1
-
-
-def if_LAN2():
-        stdin, stdout, stderr = ssh.exec_command("show interface Lan2")
-        LAN2 = stdout.readlines()
-
-        return LAN2
 
 
 
 for host in ip_addr_list:
+        print(host)
         file = open('c:/python/checkpoint/{0}.txt'.format(host),"a")
-        ssh_connection()
-        all_if = if_all()
-        if_LAN1 = if_LAN1()
-        if_LAN2 = if_LAN2()
-        file.write(''.join(all_if))
-        file.write('\n')
-        file.write('\n')
-        file.write(''.join(if_LAN1))
-        file.write('\n')
-        file.write('\n')
-        file.write(''.join(if_LAN2))
+#        ssh_connection()
+        commands()
         file.close()
 
         
