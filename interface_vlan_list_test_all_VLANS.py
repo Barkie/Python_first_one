@@ -6,8 +6,6 @@ import xlrd
 import xlwt
 import time
 import sqlite3
-from urllib.request import Request, urlopen
-
 
 sqlite_file = 'c:/python/db_test/sw.db'    # Name of the sqlite database file
 
@@ -35,16 +33,15 @@ c_if_ip = 'Interface_IP'
 c_vl_ac = 'Access_Vlan'
 c_vl_na = 'Native_Vlan'
 c_vl_tr = 'Trunk_Vlan'
-c_ven_info = 'Dev_Vendor'
 
 # Creating tables with columns
 c.execute('CREATE TABLE IF NOT EXISTS {tn} ({nf} {tf}, {nf2} {tf2}, {nf3} {tf2}, {nf4} {tf2}, {nf5} {tf2}, {nf6} {tf2}, {nf7} {tf2}, {nf8} {tf2}, {nf9} {tf2})'\
           .format(tn='CDP', nf=c_ID, tf='INTEGER', nf2=c_filename, tf2='VARCHAR(255)', nf3=c_hostname,\
             nf4=c_dev_id, nf5=c_local_iface, nf6=c_holdtime, nf7=c_capability, nf8=c_remote_platform, nf9=c_remote_iface))
 
-c.execute('CREATE TABLE IF NOT EXISTS {tn} ({nf} {tf}, {nf2} {tf2}, {nf3} {tf}, {nf4} {tf2}, {nf5} {tf2}, {nf6} {tf2}, {nf7} {tf2})'\
+c.execute('CREATE TABLE IF NOT EXISTS {tn} ({nf} {tf}, {nf2} {tf2}, {nf3} {tf}, {nf4} {tf2}, {nf5} {tf2}, {nf6} {tf2})'\
           .format(tn='MAC', nf=c_ID, tf='INTEGER', nf2=c_filename, tf2='VARCHAR(255)', nf3=c_hostname, nf4=c_mac_vl,\
-            nf5=c_mac_id, nf6=c_mac_iface, nf7=c_ven_info))
+            nf5=c_mac_id, nf6=c_mac_iface))
 
 c.execute('CREATE TABLE IF NOT EXISTS {tn} ({nf} {tf}, {nf2} {tf2}, {nf3} {tf2}, {nf4} {tf2}, {nf5} {tf2}, {nf6} {tf2})'\
           .format(tn='IP_IF', nf=c_ID, tf='INTEGER', nf2=c_filename, tf2='VARCHAR(255)', nf3=c_hostname, nf4=c_if_num,\
@@ -117,7 +114,10 @@ def find_all_interfaces(some_str):
     """trying to find all interfaces in the text file"""
     all_ifs = re.findall(r"\ninterface ((?:TenGigabitEthernet.*?!)|(?:GigabitEthernet.*?!)|(?:Fast.*?!)|(?:Serial.*?!)\n)", some_str, re.S)
     if all_ifs:
-        
+        for item in all_ifs:
+            print('----NEW INT----')
+            print(item)
+
         return list(set(all_ifs))
 
 
@@ -152,7 +152,7 @@ def mac_list(some_str):
         mac_lst = re.findall(
                 r"\n.*Mac Address Table.*\n([\S\s]*?)?.*#.*\n", some_str)
         # Cleaning MAC table from static CPU MACs
-        mac_lst_cleaned = re.findall(r"CPU\n(\W{1,3}\d[\S\s]*)", ''.join(mac_lst))
+        mac_lst_cleaned = re.findall(r"CPU\n( \d[\S\s]*)", ''.join(mac_lst))
         # Splitting cleaned MAC table output to strings, returning
         mac_lst_splited = re.findall(
             r'(\d{1,4})\s*(\S*)\s*DYNAMIC\s*(\S*)\n', ''.join(mac_lst_cleaned))
@@ -204,24 +204,6 @@ def find_secondary_ip_address(some_str):
 
         # Removing duplicates
         return list(set(ip_sec_address))
-
-
-def find_vendor(some_str):
-        """trying to find mac-address vendor"""
-        empty_return = 'No vendor info'
-        mac_web_url = 'http://macvendors.co/api/' + some_str + '/xml'
-        try:
-            req = Request(mac_web_url, headers={'User-Agent': 'Mozilla/5.0'})
-            webpage = urlopen(req).read().decode(encoding='UTF-8')
-            vendor =  re.findall(r"<company>(.*)</company", webpage)
-            if vendor:
-                empty_return = vendor
-        except:
-            print('something is wrong. error.')
-
-
-        return empty_return
-
 
 
 # Selecting directory where Cisco configuration files stored
@@ -305,20 +287,17 @@ def search(i):
             mac_vlan_id = mac[0]
             mac_id = mac[1]
             mac_interface = mac[2]
-            vendor_info = find_vendor(mac_id)
-            print(vendor_info)
             # Setting list of splitted values (for SQlite DB writing)
-            mac_params = (z, ''.join(hostname), ''.join(mac_vlan_id), ''.join(mac_id), ''.join(mac_interface), ''.join(vendor_info))
+            mac_params = (z, ''.join(hostname), ''.join(mac_vlan_id), ''.join(mac_id), ''.join(mac_interface))
             # Writing splitted values to excel
             ws.write(z, 17, ''.join(mac_vlan_id))
             ws.write(z, 18, ''.join(mac_id))
             ws.write(z, 19, ''.join(mac_interface))
-            ws.write(z, 20, ''.join(vendor_info))
             # Trying to write splitted values into SQlite DB
             try:
-                c.execute(("INSERT INTO {tn} ({idc}, {host}, {vl}, {mac}, {macif}, {veninf}) VALUES (?, ?, ?, ?, ?, ?)").\
+                c.execute(("INSERT INTO {tn} ({idc}, {host}, {vl}, {mac}, {macif}) VALUES (?, ?, ?, ?, ?)").\
                     format(tn='MAC', idc=c_ID, host=c_hostname, vl=c_mac_vl, mac=c_mac_id,\
-                        macif=c_mac_iface, veninf=c_ven_info), mac_params)
+                        macif=c_mac_iface), mac_params)
             # Exception (not used ATM, for PRIMARY KEY future usage)
             except sqlite3.IntegrityError:
                 print('ERROR: ID already exists in PRIMARY KEY column {}'.format(t_file))    
