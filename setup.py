@@ -12,7 +12,7 @@ base = None
 if sys.platform == "win32":
     base = "Win32GUI"
 
-mainScript = 'winpexpect_test.py'
+mainScript = 'cpinfo_2_rulebases_fws.py'
 targetDir = 'c:/python/git/build_new'
 setup(
     name = 'test',

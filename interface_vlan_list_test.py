@@ -1,8 +1,5 @@
 import re
-import shutil
-import os
 from os import listdir
-import xlrd
 import xlwt
 import time
 import sqlite3
@@ -12,7 +9,7 @@ from urllib.request import Request, urlopen
 sqlite_file = 'c:/python/db_test/sw.db'    # Name of the sqlite database file
 
 # Connecting to the database file
-conn = sqlite3.connect('c:/python/db_test/sw.db')
+conn = sqlite3.connect(sqlite_file)
 # Creating cursor to work with DB
 c = conn.cursor()
 
@@ -38,18 +35,22 @@ c_vl_tr = 'Trunk_Vlan'
 c_ven_info = 'Dev_Vendor'
 
 # Creating tables with columns
+c.execute("DROP TABLE IF EXISTS CDP")
 c.execute('CREATE TABLE IF NOT EXISTS {tn} ({nf} {tf}, {nf2} {tf2}, {nf3} {tf2}, {nf4} {tf2}, {nf5} {tf2}, {nf6} {tf2}, {nf7} {tf2}, {nf8} {tf2}, {nf9} {tf2})'\
           .format(tn='CDP', nf=c_ID, tf='INTEGER', nf2=c_filename, tf2='VARCHAR(255)', nf3=c_hostname,\
             nf4=c_dev_id, nf5=c_local_iface, nf6=c_holdtime, nf7=c_capability, nf8=c_remote_platform, nf9=c_remote_iface))
 
+c.execute("DROP TABLE IF EXISTS MAC")
 c.execute('CREATE TABLE IF NOT EXISTS {tn} ({nf} {tf}, {nf2} {tf2}, {nf3} {tf}, {nf4} {tf2}, {nf5} {tf2}, {nf6} {tf2}, {nf7} {tf2})'\
           .format(tn='MAC', nf=c_ID, tf='INTEGER', nf2=c_filename, tf2='VARCHAR(255)', nf3=c_hostname, nf4=c_mac_vl,\
             nf5=c_mac_id, nf6=c_mac_iface, nf7=c_ven_info))
 
+c.execute("DROP TABLE IF EXISTS IP_IF")
 c.execute('CREATE TABLE IF NOT EXISTS {tn} ({nf} {tf}, {nf2} {tf2}, {nf3} {tf2}, {nf4} {tf2}, {nf5} {tf2}, {nf6} {tf2})'\
           .format(tn='IP_IF', nf=c_ID, tf='INTEGER', nf2=c_filename, tf2='VARCHAR(255)', nf3=c_hostname, nf4=c_if_num,\
             nf5=c_if_name, nf6=c_if_ip))
 
+c.execute("DROP TABLE IF EXISTS VL_IF")
 c.execute('CREATE TABLE IF NOT EXISTS {tn} ({nf} {tf}, {nf2} {tf2}, {nf3} {tf2}, {nf4} {tf2}, {nf5} {tf2}, {nf6} {tf2}, {nf7} {tf2}, {nf8} {tf2})'\
           .format(tn='VL_IF', nf=c_ID, tf='INTEGER', nf2=c_filename, tf2='VARCHAR(255)', nf3=c_hostname, nf4=c_if_num,\
             nf5=c_if_name, nf6=c_vl_ac, nf7=c_vl_na, nf8=c_vl_tr))
@@ -212,9 +213,12 @@ def find_vendor(some_str):
         mac_web_url = 'http://macvendors.co/api/' + some_str + '/xml'
         try:
             req = Request(mac_web_url, headers={'User-Agent': 'Mozilla/5.0'})
+            #print(req)
             webpage = urlopen(req).read().decode(encoding='UTF-8')
+            #print(webpage)
             vendor =  re.findall(r"<company>(.*)</company", webpage)
             if vendor:
+            #    print(vendor)
                 empty_return = vendor
         except:
             print('something is wrong. error.')
@@ -242,11 +246,11 @@ for index, header in enumerate(headers):
     ws.write(0, index, header)
 
 
-def search(i):
+def search(i, file):
     """main function"""
     # Creating counter for CDP
     b = i
-
+    print(file)
     # Creating counter for MAC
     z = i
 
@@ -255,6 +259,7 @@ def search(i):
     hostname = find_device_hostname(some_str)
     # If hostname is found, writing to excel
     if hostname:
+        #print(hostname)
         ws.write(i, 1, ''.join(hostname))
     
     # Finding cdp neighbors
@@ -274,7 +279,7 @@ def search(i):
             print(dev_id)   #debug purposes
             print(local_iface)  #debug purposes
             # Setting list of splitted values (for SQlite DB writing)
-            cdp_id = (b, ''.join(hostname), ''.join(dev_id), ''.join(local_iface), ''.join(holdtime), ''.join(capability), ''.join(platform), ''.join(remote_iface))
+            cdp_id = (b, ''.join(file), ''.join(hostname), ''.join(dev_id), ''.join(local_iface), ''.join(holdtime), ''.join(capability), ''.join(platform), ''.join(remote_iface))
             # Writing splitted values to excel
             ws.write(b, 10, ''.join(dev_id))
             ws.write(b, 11, ''.join(local_iface))
@@ -284,8 +289,8 @@ def search(i):
             ws.write(b, 15, ''.join(remote_iface))
             # Trying to write splitted values into SQlite DB
             try:
-                c.execute(("INSERT INTO {tn} ({idc}, {host}, {devid}, {locif}, {hold}, {cap}, {plat}, {remif}) VALUES (?, ?, ?, ?, ?, ?, ?, ?)").\
-                    format(tn='CDP', idc=c_ID, host=c_hostname, devid=c_dev_id, locif=c_local_iface,\
+                c.execute(("INSERT INTO {tn} ({idc}, {file1}, {host}, {devid}, {locif}, {hold}, {cap}, {plat}, {remif}) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)").\
+                    format(tn='CDP', idc=c_ID, file1=c_filename, host=c_hostname, devid=c_dev_id, locif=c_local_iface,\
                         hold=c_holdtime, cap=c_capability, plat=c_remote_platform, remif=c_remote_iface), cdp_id)
             # Exception (not used ATM, for PRIMARY KEY future usage)
             except sqlite3.IntegrityError:
@@ -306,9 +311,9 @@ def search(i):
             mac_id = mac[1]
             mac_interface = mac[2]
             vendor_info = find_vendor(mac_id)
-            print(vendor_info)
+            #print(vendor_info)
             # Setting list of splitted values (for SQlite DB writing)
-            mac_params = (z, ''.join(hostname), ''.join(mac_vlan_id), ''.join(mac_id), ''.join(mac_interface), ''.join(vendor_info))
+            mac_params = (z, ''.join(file), ''.join(hostname), ''.join(mac_vlan_id), ''.join(mac_id), ''.join(mac_interface), ''.join(vendor_info))
             # Writing splitted values to excel
             ws.write(z, 17, ''.join(mac_vlan_id))
             ws.write(z, 18, ''.join(mac_id))
@@ -316,8 +321,8 @@ def search(i):
             ws.write(z, 20, ''.join(vendor_info))
             # Trying to write splitted values into SQlite DB
             try:
-                c.execute(("INSERT INTO {tn} ({idc}, {host}, {vl}, {mac}, {macif}, {veninf}) VALUES (?, ?, ?, ?, ?, ?)").\
-                    format(tn='MAC', idc=c_ID, host=c_hostname, vl=c_mac_vl, mac=c_mac_id,\
+                c.execute(("INSERT INTO {tn} ({idc}, {file1}, {host}, {vl}, {mac}, {macif}, {veninf}) VALUES (?, ?, ?, ?, ?, ?, ?)").\
+                    format(tn='MAC', idc=c_ID, file1=c_filename, host=c_hostname, vl=c_mac_vl, mac=c_mac_id,\
                         macif=c_mac_iface, veninf=c_ven_info), mac_params)
             # Exception (not used ATM, for PRIMARY KEY future usage)
             except sqlite3.IntegrityError:
@@ -334,11 +339,11 @@ def search(i):
             val1name, val2descr, val3vlac, val4vlnat, val5vltr = find_all_interfaces_with_vlans(item)
             if val1name:
                 val1name = remove_empty_values_from_tuple(val1name)
-                vl_params = (counter, ''.join(hostname), ''.join(val1name), ''.join(val2descr), ''.join(val3vlac), ''.join(val4vlnat), ''.join(val5vltr))
+                vl_params = (counter, ''.join(file), ''.join(hostname), ''.join(val1name), ''.join(val2descr), ''.join(val3vlac), ''.join(val4vlnat), ''.join(val5vltr))
                 print(vl_params)
                 try:
-                    c.execute(("INSERT INTO {tn} ({idc}, {host}, {ifname}, {ifdes}, {vlac}, {vlna}, {vltr}) VALUES (?, ?, ?, ?, ?, ?, ?)").\
-                        format(tn='VL_IF', idc=c_ID, host=c_hostname, ifname=c_if_num, ifdes=c_if_name,\
+                    c.execute(("INSERT INTO {tn} ({idc}, {file1}, {host}, {ifname}, {ifdes}, {vlac}, {vlna}, {vltr}) VALUES (?, ?, ?, ?, ?, ?, ?, ?)").\
+                        format(tn='VL_IF', idc=c_ID, file1=c_filename, host=c_hostname, ifname=c_if_num, ifdes=c_if_name,\
                             vlac=c_vl_ac, vlna=c_vl_na, vltr=c_vl_tr), vl_params)
                 # Exception (not used ATM, for PRIMARY KEY future usage)
                 except sqlite3.IntegrityError:
@@ -380,11 +385,11 @@ def search(i):
             i += 1
             ws.write(i, 4, ''.join(ip_sec) + ' secondary')
         # Setting list of values (for SQlite DB writing)
-        if_id = (i, ''.join(hostname), ''.join(interface), ''.join(descr), ''.join(nameif), ''.join(ip))
+        if_id = (i, ''.join(file), ''.join(hostname), ''.join(interface), ''.join(descr), ''.join(nameif), ''.join(ip))
         # Trying to write values into SQlite DB
         try:
-            c.execute(("INSERT INTO {tn} ({idc}, {host}, {ifn}, {descr}, {nameif}, {ip}) VALUES (?, ?, ?, ?, ?, ?)").\
-                format(tn='IP_IF', idc=c_ID, host=c_hostname, ifn=c_if_num, descr=c_if_name, nameif=c_if_name, ip=c_if_ip,), if_id)
+            c.execute(("INSERT INTO {tn} ({idc}, {file1}, {host}, {ifn}, {descr}, {nameif}, {ip}) VALUES (?, ?, ?, ?, ?, ?, ?)").\
+                format(tn='IP_IF', idc=c_ID, file1=c_filename, host=c_hostname, ifn=c_if_num, descr=c_if_name, nameif=c_if_name, ip=c_if_ip,), if_id)
         # Exception (not used ATM, for PRIMARY KEY future usage)
         except sqlite3.IntegrityError:
             print('ERROR: ID already exists in PRIMARY KEY column {}'.format(t_file))          
@@ -393,7 +398,7 @@ def search(i):
         # Counter +1 for the next line (next interface-ip)
         i += 1
     # For each file searched print at the end of searching
-    print('info saved')
+    #print('info saved')
     # Counter+1 to next excel line (next device in the listFF file list)
     i += 1
 
@@ -422,11 +427,11 @@ for file in listFF:
     # Row number = result of search function
     try:
        # Connecting to DB
-       conn = sqlite3.connect('c:/python/db_test/sw.db')
+       conn = sqlite3.connect(sqlite_file)
        # Creating cursor to work with DB
        c = conn.cursor()
        # Starting main search function
-       row = search(row)
+       row = search(row, file)
        # Saving excel workbook
        wb.save('C:/python/outputdir/interface_vlan_list_test.xls')
        # Commiting changes to DB and closing DB.
