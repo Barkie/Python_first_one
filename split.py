@@ -8,7 +8,7 @@ item_ids = 0, 1, 2, 3, 4, 5
 dev_id = local_iface = holdtime = capability = platform = remote_iface = 0
 cdp_fields = dev_id, local_iface, holdtime, capability, platform, remote_iface
 
-def split_mutherfucker():
+def split_motherfucker():
         """Split every string in the cdp neighbor info"""    
         dev_id = item[0]
         local_iface = item[1]
